@@ -21,7 +21,7 @@
             var newRow = tbody.insertRow(-1);
             insertTableCell(newRow, 0, '<input type="text" />')
                 .firstChild.value = (rowData ? rowData.label : "");
-            insertTableCell(newRow, 1, '<input type="text" />')
+            insertTableCell(newRow, 1, '<input type="password" />')
                 .firstChild.value = (rowData ? rowData.user : "");
             insertTableCell(newRow, 2, '<input type="password" />')
                 .firstChild.value = (rowData ? rowData.password : "");
@@ -52,6 +52,7 @@
             var showHideCheckbox = e.target;
             var row = e.target.parentNode.parentNode;
 
+            row.childNodes[1].firstChild.type = showHideCheckbox.checked ? "text" : "password";
             row.childNodes[2].firstChild.type = showHideCheckbox.checked ? "text" : "password";
         }
 
@@ -127,7 +128,7 @@
         function saveDataHandler(e) {
             var data = serializeData();
             encryptData(data, function(encrypted) {
-                saveData("passman.dat", encrypted);
+                saveData("passlist.dat", encrypted);
             });
         }
 
@@ -226,9 +227,11 @@
     </script>
 </head>
 <body>
+    <label>Key File</label>
     <input id="fileKey" type="file" />
     <span id="fileKeyLoading"></span>
     <br />
+    <label>Data File</label>
     <input id="fileData" type="file" />
     <br />
     <button id="addPassword">Add</button>
