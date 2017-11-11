@@ -6,55 +6,96 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Password List</title>
     <script>
+        var _data = {
+            passwordList: [],
+
+            createPassword: function(label, user, password, notes, createdOn, modifiedOn) {
+                var now = new Date();
+                var passwordItem = {
+                    label: label || "",
+                    user: user || "",
+                    password: password || "",
+                    notes: notes || "",
+                    createdOn: createdOn || now,
+                    modifiedOn: modifiedOn || now
+                };
+                
+                this.passwordList.push(passwordItem);
+
+                return passwordItem;
+            },
+
+            deletePassword: function(index) {
+                this.passwordList.splice(index, 1);
+            }
+        };
+
         var _iv = null;
         var _keyFile = null;
 
-        function insertTableCell(tableRow, index, innerHtml) {
-            var newCell = tableRow.insertCell(index);
-            newCell.innerHTML = innerHtml;
+        var _event = {
+            onAddPassword: function(e) {
+                var passwordItem = _view.createPasswordFromInput();
+                _view.addPasswordToList(passwordItem);
+            },
 
-            return newCell;
-        }
+            onDeletePassword: function(e) {
+                _view.deletePasswordFromList(e.target);
+            },
 
-        function newPasswordRow(rowData) {
-            var tbody = document.querySelector("#passwordList tbody");
-            var newRow = tbody.insertRow(-1);
-            insertTableCell(newRow, 0, '<input type="text" />')
-                .firstChild.value = (rowData ? rowData.label : "");
-            insertTableCell(newRow, 1, '<input type="password" />')
-                .firstChild.value = (rowData ? rowData.user : "");
-            insertTableCell(newRow, 2, '<input type="password" />')
-                .firstChild.value = (rowData ? rowData.password : "");
-            insertTableCell(newRow, 3, '<textarea></textarea>')
-                .firstChild.value = (rowData ? rowData.notes : "");
+            onShowHidePassword: function(e) {
+                // // label: row.childNodes[0].firstChild.value,
+                // // user: row.childNodes[1].firstChild.value,
+                // // password: row.childNodes[2].firstChild.value,
+                // // notes: row.childNodes[3].firstChild.value
+                // var showHideCheckbox = e.target;
+                // var row = e.target.parentNode.parentNode;
 
-            var showHideCell = insertTableCell(newRow, 4, '<input type="checkbox" />');
-            showHideCell.firstChild.addEventListener("change", showHideHandler, false);
+                // row.childNodes[1].firstChild.type = showHideCheckbox.checked ? "text" : "password";
+                // row.childNodes[2].firstChild.type = showHideCheckbox.checked ? "text" : "password";
+            }
+        };
 
-            var deleteCell = insertTableCell(newRow, 5, '<button>Delete</button>');
-            deleteCell.firstChild.addEventListener("click", deletePasswordHandler, false);
-        }
+        var _view = {
+            addPasswordToList: function(passwordItem) {
+                // Create and add a table row.
+                var tbody = document.querySelector("#passwordList tbody");
+                var newRow = tbody.insertRow(-1);
+                newRow.insertCell(0).innerHTML = passwordItem.label;
+                newRow.insertCell(1).innerHTML = passwordItem.user;
+                newRow.insertCell(2).innerHTML = passwordItem.password;
+                newRow.insertCell(3).innerHTML = passwordItem.notes;
+                newRow.insertCell(4).innerHTML = passwordItem.createdOn.toLocaleString();
+                newRow.insertCell(5).innerHTML = passwordItem.modifiedOn.toLocaleString();
 
-        function addPasswordHandler(e) {
-            newPasswordRow();
-        }
+                // var showHideCell = newRow.insertCell(4);
+                // showHideCell.innerHTML = '<input type="checkbox" />';
+                // showHideCell.firstChild.addEventListener("change", showHideHandler, false);
 
-        function deletePasswordHandler(e) {
-            var row = e.target.parentNode.parentNode;
-            row.parentNode.removeChild(row);
-        }
+                var deleteCell = newRow.insertCell(6);
+                deleteCell.innerHTML = '<button>Delete</button>';
+                deleteCell.firstChild.addEventListener("click", _event.onDeletePassword, false);
+            },
 
-        function showHideHandler(e) {
-            // label: row.childNodes[0].firstChild.value,
-            // user: row.childNodes[1].firstChild.value,
-            // password: row.childNodes[2].firstChild.value,
-            // notes: row.childNodes[3].firstChild.value
-            var showHideCheckbox = e.target;
-            var row = e.target.parentNode.parentNode;
+            createPasswordFromInput: function() {
+                // Create password item from the form inputs.
+                passwordItem = _data.createPassword(
+                    document.getElementById("newPasswordLabel").value,
+                    document.getElementById("newPasswordUser").value,
+                    document.getElementById("newPasswordValue").value,
+                    document.getElementById("newPasswordNotes").value
+                );
 
-            row.childNodes[1].firstChild.type = showHideCheckbox.checked ? "text" : "password";
-            row.childNodes[2].firstChild.type = showHideCheckbox.checked ? "text" : "password";
-        }
+                document.getElementById("newPasswordForm").reset();
+
+                return passwordItem;
+            },
+
+            deletePasswordFromList: function(element) {
+                var row = element.parentNode.parentNode;
+                row.parentNode.removeChild(row);
+            }
+        };
 
         function loadKeyHandler(e) {
             var files = e.target.files;
@@ -213,7 +254,7 @@
 
         window.onload = function() {
             document.getElementById("addPassword")
-                .addEventListener("click", addPasswordHandler, false);
+                .addEventListener("click", _event.onAddPassword, false);
 
             document.getElementById("fileData")
                 .addEventListener("change", loadDataHandler, false);
@@ -227,26 +268,46 @@
     </script>
 </head>
 <body>
-    <label>Key File</label>
-    <input id="fileKey" type="file" />
-    <span id="fileKeyLoading"></span>
-    <br />
-    <label>Data File</label>
-    <input id="fileData" type="file" />
-    <br />
-    <button id="addPassword">Add</button>
-    <button id="saveData">Save Data</button>
-    <table id="passwordList">
-        <thead>
-            <tr>
-                <th>Label</th>
-                <th>User</th>
-                <th>Password</th>
-                <th>Notes</th>
-                <th>Show/Hide</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <p>
+        <label>Key File</label>
+        <input id="fileKey" type="file" />
+        <span id="fileKeyLoading"></span>
+        <br />
+        <label>Data File</label>
+        <input id="fileData" type="file" />
+    </p>
+    <p>
+        <form id="newPasswordForm">
+            <label>Label</label>
+            <input id="newPasswordLabel" type="text" />
+            <br />
+            <label>User</label>
+            <input id="newPasswordUser" type="text" />
+            <br />
+            <label>Password</label>
+            <input id="newPasswordValue" type="text" />
+            <br />
+            <label>Notes</label>
+            <textarea id="newPasswordNotes"></textarea>
+        </form>
+        <button id="addPassword">Add</button>
+    </p>
+    <p>
+        <button id="saveData">Save Data</button>
+        <table id="passwordList">
+            <thead>
+                <tr>
+                    <th>Label</th>
+                    <th>User</th>
+                    <th>Password</th>
+                    <th>Notes</th>
+                    <th>Created On</th>
+                    <th>Modified On</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </p>
 </body>
 </html>
