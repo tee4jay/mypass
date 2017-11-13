@@ -19,7 +19,7 @@
                     createdOn: createdOn || now,
                     modifiedOn: modifiedOn || now
                 };
-                
+                passwordItem.id = passwordItem.createdOn.valueOf(); // Use created on as id.
                 this.passwordList.push(passwordItem);
 
                 return passwordItem;
@@ -27,20 +27,76 @@
 
             deletePassword: function(index) {
                 this.passwordList.splice(index, 1);
+            },
+
+            getPassword: function(id) {
+                for (var i = 0; i < this.passwordList.length; ++i) {
+                    if (id === this.passwordList[i].id) {
+                        return this.passwordList[i];
+                    }
+                }
             }
         };
 
         var _iv = null;
         var _keyFile = null;
 
-        var _event = {
-            onAddPassword: function(e) {
-                var passwordItem = _view.createPasswordFromInput();
+        var _view = {
+            addPasswordToList: function(passwordItem) {
+                // Create and add a table row.
+                var tbody = document.querySelector("#passwordList tbody");
+                var newRow = tbody.insertRow(-1);
+                newRow.dataset.id = passwordItem.id;
+                newRow.insertCell(0).innerHTML = passwordItem.label;
+                newRow.insertCell(1).innerHTML = passwordItem.user;
+                newRow.insertCell(2).innerHTML = passwordItem.password;
+                newRow.insertCell(3).innerHTML = passwordItem.notes;
+                newRow.insertCell(4).innerHTML = passwordItem.createdOn.toLocaleString();
+                newRow.insertCell(5).innerHTML = passwordItem.modifiedOn.toLocaleString();
+
+                // var showHideCell = newRow.insertCell(4);
+                // showHideCell.innerHTML = '<input type="checkbox" />';
+                // showHideCell.firstChild.addEventListener("change", showHideHandler, false);
+
+                var deleteCell = newRow.insertCell(6);
+                deleteCell.innerHTML = "<button>Delete</button>";
+                deleteCell.firstChild.addEventListener("click", _view.onDeletePassword, false);
+
+                var editCell = newRow.insertCell(7);
+                editCell.innerHTML = "<button>Edit</button>";
+                editCell.firstChild.addEventListener("click", _view.onEditPassword, false);
+            },
+
+            // Begin: Event Handlers
+            onAddPassword: function(e) {                
+                // Create password item from the form inputs.
+                var passwordItem = _data.createPassword(
+                    document.getElementById("newPasswordLabel").value,
+                    document.getElementById("newPasswordUser").value,
+                    document.getElementById("newPasswordValue").value,
+                    document.getElementById("newPasswordNotes").value);
+
                 _view.addPasswordToList(passwordItem);
+
+                // Clear user input.
+                document.getElementById("newPasswordForm").reset();
             },
 
             onDeletePassword: function(e) {
-                _view.deletePasswordFromList(e.target);
+                var row = e.target.parentNode.parentNode;
+                row.parentNode.removeChild(row);
+            },
+
+            onEditPassword: function(e) {
+                var row = e.target.parentNode.parentNode;
+                var passwordItem = _data.getPassword(parseInt(row.dataset.id));
+
+                if (passwordItem) {
+                    document.getElementById("newPasswordLabel").value = passwordItem.label;
+                    document.getElementById("newPasswordUser").value = passwordItem.user;
+                    document.getElementById("newPasswordValue").value = passwordItem.password;
+                    document.getElementById("newPasswordNotes").value = passwordItem.notes;
+                }
             },
 
             onShowHidePassword: function(e) {
@@ -54,47 +110,8 @@
                 // row.childNodes[1].firstChild.type = showHideCheckbox.checked ? "text" : "password";
                 // row.childNodes[2].firstChild.type = showHideCheckbox.checked ? "text" : "password";
             }
-        };
 
-        var _view = {
-            addPasswordToList: function(passwordItem) {
-                // Create and add a table row.
-                var tbody = document.querySelector("#passwordList tbody");
-                var newRow = tbody.insertRow(-1);
-                newRow.insertCell(0).innerHTML = passwordItem.label;
-                newRow.insertCell(1).innerHTML = passwordItem.user;
-                newRow.insertCell(2).innerHTML = passwordItem.password;
-                newRow.insertCell(3).innerHTML = passwordItem.notes;
-                newRow.insertCell(4).innerHTML = passwordItem.createdOn.toLocaleString();
-                newRow.insertCell(5).innerHTML = passwordItem.modifiedOn.toLocaleString();
-
-                // var showHideCell = newRow.insertCell(4);
-                // showHideCell.innerHTML = '<input type="checkbox" />';
-                // showHideCell.firstChild.addEventListener("change", showHideHandler, false);
-
-                var deleteCell = newRow.insertCell(6);
-                deleteCell.innerHTML = '<button>Delete</button>';
-                deleteCell.firstChild.addEventListener("click", _event.onDeletePassword, false);
-            },
-
-            createPasswordFromInput: function() {
-                // Create password item from the form inputs.
-                passwordItem = _data.createPassword(
-                    document.getElementById("newPasswordLabel").value,
-                    document.getElementById("newPasswordUser").value,
-                    document.getElementById("newPasswordValue").value,
-                    document.getElementById("newPasswordNotes").value
-                );
-
-                document.getElementById("newPasswordForm").reset();
-
-                return passwordItem;
-            },
-
-            deletePasswordFromList: function(element) {
-                var row = element.parentNode.parentNode;
-                row.parentNode.removeChild(row);
-            }
+            // End: Event Handlers
         };
 
         function loadKeyHandler(e) {
@@ -254,7 +271,7 @@
 
         window.onload = function() {
             document.getElementById("addPassword")
-                .addEventListener("click", _event.onAddPassword, false);
+                .addEventListener("click", _view.onAddPassword, false);
 
             document.getElementById("fileData")
                 .addEventListener("change", loadDataHandler, false);
