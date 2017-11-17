@@ -35,6 +35,20 @@
                         return this.passwordList[i];
                     }
                 }
+            },
+
+            updatePassword: function(id, label, user, password, notes) {
+                var passwordItem = this.getPassword(id);
+
+                if (passwordItem) {
+                    passwordItem.label = label;
+                    passwordItem.user = user;
+                    passwordItem.password = password;
+                    passwordItem.notes = notes;
+                    passwordItem.modifiedOn = new Date();
+                }
+
+                return passwordItem;
             }
         };
 
@@ -71,15 +85,15 @@
             onAddPassword: function(e) {                
                 // Create password item from the form inputs.
                 var passwordItem = _data.createPassword(
-                    document.getElementById("newPasswordLabel").value,
-                    document.getElementById("newPasswordUser").value,
-                    document.getElementById("newPasswordValue").value,
-                    document.getElementById("newPasswordNotes").value);
+                    document.getElementById("passwordFormLabel").value,
+                    document.getElementById("passwordFormUser").value,
+                    document.getElementById("passwordFormPassword").value,
+                    document.getElementById("passwordFormNotes").value);
 
                 _view.addPasswordToList(passwordItem);
 
                 // Clear user input.
-                document.getElementById("newPasswordForm").reset();
+                document.getElementById("passwordForm").reset();
             },
 
             onDeletePassword: function(e) {
@@ -92,11 +106,40 @@
                 var passwordItem = _data.getPassword(parseInt(row.dataset.id));
 
                 if (passwordItem) {
-                    document.getElementById("newPasswordLabel").value = passwordItem.label;
-                    document.getElementById("newPasswordUser").value = passwordItem.user;
-                    document.getElementById("newPasswordValue").value = passwordItem.password;
-                    document.getElementById("newPasswordNotes").value = passwordItem.notes;
+                    document.getElementById("passwordFormIndex").value = row.rowIndex;
+                    document.getElementById("passwordFormId").value = passwordItem.id;
+                    document.getElementById("passwordFormLabel").value = passwordItem.label;
+                    document.getElementById("passwordFormUser").value = passwordItem.user;
+                    document.getElementById("passwordFormPassword").value = passwordItem.password;
+                    document.getElementById("passwordFormNotes").value = passwordItem.notes;
                 }
+            },
+
+            onApplyEditPassword: function(e) {
+                // TODO: Validate the values.
+                var rowIndex = parseInt(document.getElementById("passwordFormIndex").value);
+                var passwordId = parseInt(document.getElementById("passwordFormId").value);
+
+                // Update the password item data.
+                var passwordItem = _data.updatePassword(
+                    passwordId,
+                    document.getElementById("passwordFormLabel").value,
+                    document.getElementById("passwordFormUser").value,
+                    document.getElementById("passwordFormPassword").value,
+                    document.getElementById("passwordFormNotes").value);
+
+                if (passwordItem) {
+                    var row = document.getElementById("passwordList").rows[rowIndex];
+                    // Refresh the password in the table.
+                    row.cells[0].innerHTML = passwordItem.label;
+                    row.cells[1].innerHTML = passwordItem.user;
+                    row.cells[2].innerHTML = passwordItem.password;
+                    row.cells[3].innerHTML = passwordItem.notes;
+                    row.cells[5].innerHTML = passwordItem.modifiedOn.toLocaleString();
+                }
+
+                // Clear user input.
+                document.getElementById("passwordForm").reset();
             },
 
             onShowHidePassword: function(e) {
@@ -273,6 +316,9 @@
             document.getElementById("addPassword")
                 .addEventListener("click", _view.onAddPassword, false);
 
+            document.getElementById("applyEditPassword")
+                .addEventListener("click", _view.onApplyEditPassword, false);
+
             document.getElementById("fileData")
                 .addEventListener("change", loadDataHandler, false);
 
@@ -294,20 +340,23 @@
         <input id="fileData" type="file" />
     </p>
     <p>
-        <form id="newPasswordForm">
+        <form id="passwordForm">
+            <input id="passwordFormId" type="hidden" />
+            <input id="passwordFormIndex" type="hidden" />
             <label>Label</label>
-            <input id="newPasswordLabel" type="text" />
+            <input id="passwordFormLabel" type="text" />
             <br />
             <label>User</label>
-            <input id="newPasswordUser" type="text" />
+            <input id="passwordFormUser" type="text" />
             <br />
             <label>Password</label>
-            <input id="newPasswordValue" type="text" />
+            <input id="passwordFormPassword" type="text" />
             <br />
             <label>Notes</label>
-            <textarea id="newPasswordNotes"></textarea>
+            <textarea id="passwordFormNotes"></textarea>
         </form>
         <button id="addPassword">Add</button>
+        <button id="applyEditPassword">Apply Edit</button>
     </p>
     <p>
         <button id="saveData">Save Data</button>
