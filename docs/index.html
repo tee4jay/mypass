@@ -4,189 +4,300 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
+    <title>Password List</title>
     <script>
+        var _data = {
+            passwordList: [],
+
+            createPassword: function(label, user, password, notes, createdOnISO8601, modifiedOnISO8601) {
+                var passwordItem = new PasswordItem(label, user, password, notes, createdOnISO8601, modifiedOnISO8601);
+                this.passwordList.push(passwordItem);
+
+                return passwordItem;
+            },
+
+            deletePassword: function(id) {
+                for (var i = 0; i < this.passwordList.length; ++i) {
+                    if (id === this.passwordList[i].getId()) {
+                        this.passwordList.splice(i, 1);
+                        break;
+                    }
+                }
+            },
+
+            getPassword: function(id) {
+                for (var i = 0; i < this.passwordList.length; ++i) {
+                    if (id === this.passwordList[i].getId()) {
+                        return this.passwordList[i];
+                    }
+                }
+            },
+
+            serializeData: function() {
+                var data = {
+                    list: this.passwordList
+                };
+
+                return JSON.stringify(data);
+            },
+
+            updatePassword: function(id, label, user, password, notes) {
+                var passwordItem = this.getPassword(id);
+
+                if (passwordItem) {
+                    passwordItem.label = label;
+                    passwordItem.user = user;
+                    passwordItem.password = password;
+                    passwordItem.notes = notes;
+                    passwordItem.modifiedOn = new Date();
+                }
+
+                return passwordItem;
+            }
+        };
+
         var _iv = null;
         var _keyFile = null;
 
-        function insertTableCell(tableRow, index, innerHtml) {
-            var newCell = tableRow.insertCell(index);
-            newCell.innerHTML = innerHtml;
+        var _view = {
+            addPasswordToList: function(passwordItem) {
+                // Create and add a table row.
+                var tbody = document.querySelector("#passwordList tbody");
+                var newRow = tbody.insertRow(-1);
+                newRow.dataset.id = passwordItem.getId();
+                newRow.insertCell(0).innerHTML = passwordItem.label;
+                newRow.insertCell(1).innerHTML = passwordItem.user;
+                newRow.insertCell(2).innerHTML = passwordItem.password;
+                newRow.insertCell(3).innerHTML = passwordItem.notes;
+                newRow.insertCell(4).innerHTML = passwordItem.createdOn.toLocaleString();
+                newRow.insertCell(5).innerHTML = passwordItem.modifiedOn.toLocaleString();
 
-            return newCell;
-        }
+                // var showHideCell = newRow.insertCell(4);
+                // showHideCell.innerHTML = '<input type="checkbox" />';
+                // showHideCell.firstChild.addEventListener("change", showHideHandler, false);
 
-        function newPasswordRow(rowData) {
-            var tbody = document.querySelector("#passwordList tbody");
-            var newRow = tbody.insertRow(-1);
-            insertTableCell(newRow, 0, '<input type="text" />')
-                .firstChild.value = (rowData ? rowData.label : "");
-            insertTableCell(newRow, 1, '<input type="text" />')
-                .firstChild.value = (rowData ? rowData.user : "");
-            insertTableCell(newRow, 2, '<input type="password" />')
-                .firstChild.value = (rowData ? rowData.password : "");
-            insertTableCell(newRow, 3, '<textarea></textarea>')
-                .firstChild.value = (rowData ? rowData.notes : "");
+                var deleteCell = newRow.insertCell(6);
+                deleteCell.innerHTML = "<button>Delete</button>";
+                deleteCell.firstChild.addEventListener("click", _view.onDeletePassword, false);
 
-            var showHideCell = insertTableCell(newRow, 4, '<input type="checkbox" />');
-            showHideCell.firstChild.addEventListener("change", showHideHandler, false);
+                var editCell = newRow.insertCell(7);
+                editCell.innerHTML = "<button>Edit</button>";
+                editCell.firstChild.addEventListener("click", _view.onEditPassword, false);
+            },
 
-            var deleteCell = insertTableCell(newRow, 5, '<button>Delete</button>');
-            deleteCell.firstChild.addEventListener("click", deletePasswordHandler, false);
-        }
+            // Begin: Event Handlers
+            onAddPassword: function(e) {                
+                // Create password item from the form inputs.
+                var passwordItem = _data.createPassword(
+                    document.getElementById("passwordFormLabel").value,
+                    document.getElementById("passwordFormUser").value,
+                    document.getElementById("passwordFormPassword").value,
+                    document.getElementById("passwordFormNotes").value);
 
-        function addPasswordHandler(e) {
-            newPasswordRow();
-        }
+                _view.addPasswordToList(passwordItem);
 
-        function deletePasswordHandler(e) {
-            var row = e.target.parentNode.parentNode;
-            row.parentNode.removeChild(row);
-        }
+                // Clear user input.
+                document.getElementById("passwordForm").reset();
+            },
 
-        function showHideHandler(e) {
-            // label: row.childNodes[0].firstChild.value,
-            // user: row.childNodes[1].firstChild.value,
-            // password: row.childNodes[2].firstChild.value,
-            // notes: row.childNodes[3].firstChild.value
-            var showHideCheckbox = e.target;
-            var row = e.target.parentNode.parentNode;
+            onApplyEditPassword: function(e) {
+                // TODO: Validate the values.
+                var rowIndex = parseInt(document.getElementById("passwordFormIndex").value);
+                var passwordId = parseInt(document.getElementById("passwordFormId").value);
 
-            row.childNodes[2].firstChild.type = showHideCheckbox.checked ? "text" : "password";
-        }
+                // Update the password item data.
+                var passwordItem = _data.updatePassword(
+                    passwordId,
+                    document.getElementById("passwordFormLabel").value,
+                    document.getElementById("passwordFormUser").value,
+                    document.getElementById("passwordFormPassword").value,
+                    document.getElementById("passwordFormNotes").value);
 
-        function loadKeyHandler(e) {
-            var files = e.target.files;
-
-            document.getElementById("fileKeyLoading").innerHTML = "Loading...";
-
-            if (files && files.length > 0) {
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    var fileArrayBuffer = e.target.result;
-
-                    window.crypto.subtle.digest("SHA-256", fileArrayBuffer)
-                        .then(function (result) {
-                            
-                            crypto.subtle.importKey(
-                                    "raw",
-                                    result,
-                                    "AES-CBC",
-                                    false,
-                                    ["encrypt", "decrypt"])
-                                .then(function (key) {
-                                    _keyFile = key;
-
-                                    document.getElementById("fileKeyLoading").innerHTML = "";
-                                })
-                                .catch(function (error) {
-                                    alert("error importing key!");
-                                });
-
-                        })
-                        .catch(function (error) {
-                            alert("error loading key!");
-                        });
-
-                    window.crypto.subtle.digest("SHA-1", fileArrayBuffer)
-                        .then(function (result) {
-                            _iv = new Uint8Array(result, 4, 16);
-                        })
-                        .catch(function (error) {
-                            alert("error loading key!");
-                        });
-                };
-                reader.readAsArrayBuffer(files[0]);
-            }
-        }
-
-        function loadDataHandler(e) {
-            var files = e.target.files;
-
-            if (files && files.length > 0) {
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    deserializeData(e.target.result);
-                };
-                reader.readAsArrayBuffer(files[0]);
-            }
-        }
-
-        function deserializeData(buffer) {
-            decryptData(buffer, function(text) {
-                if (text) {
-                    var data = JSON.parse(text);
-
-                    for (var i = 0; i < data.list.length; ++i) {
-                        newPasswordRow(data.list[i]);
-                    }
+                if (passwordItem) {
+                    var row = document.getElementById("passwordList").rows[rowIndex];
+                    // Refresh the password in the table.
+                    row.cells[0].innerHTML = passwordItem.label;
+                    row.cells[1].innerHTML = passwordItem.user;
+                    row.cells[2].innerHTML = passwordItem.password;
+                    row.cells[3].innerHTML = passwordItem.notes;
+                    row.cells[5].innerHTML = passwordItem.modifiedOn.toLocaleString();
                 }
-            });
-        }
 
-        function saveDataHandler(e) {
-            var data = serializeData();
-            encryptData(data, function(encrypted) {
-                saveData("passman.dat", encrypted);
-            });
-        }
+                // Clear user input.
+                document.getElementById("passwordForm").reset();
+            },
 
-        function serializeData() {
-            var data = {
-                list: []
-            };
-            var rows = document.querySelectorAll("#passwordList tbody tr");
-            
-            for(var i = 0; i < rows.length; ++i) {
-                var row = rows[i];
-                data.list.push({
-                    label: row.childNodes[0].firstChild.value,
-                    user: row.childNodes[1].firstChild.value,
-                    password: row.childNodes[2].firstChild.value,
-                    notes: row.childNodes[3].firstChild.value
-                });
+            onCancelEditPassword: function(e) {
+                // Clear user input.
+                document.getElementById("passwordForm").reset();
+            },
+
+            onDeletePassword: function(e) {
+                var row = e.target.parentNode.parentNode;
+                _data.deletePassword(parseInt(row.dataset.id));
+                row.parentNode.removeChild(row);
+            },
+
+            onEditPassword: function(e) {
+                var row = e.target.parentNode.parentNode;
+                var passwordItem = _data.getPassword(parseInt(row.dataset.id));
+
+                if (passwordItem) {
+                    document.getElementById("passwordFormIndex").value = row.rowIndex;
+                    document.getElementById("passwordFormId").value = passwordItem.getId();
+                    document.getElementById("passwordFormLabel").value = passwordItem.label;
+                    document.getElementById("passwordFormUser").value = passwordItem.user;
+                    document.getElementById("passwordFormPassword").value = passwordItem.password;
+                    document.getElementById("passwordFormNotes").value = passwordItem.notes;
+                }
+            },
+
+            onLoadDataFile: function(e) {
+                var files = e.target.files;
+
+                if (files && files.length > 0) {
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var encryptedDataBuffer = e.target.result;
+                        window.crypto.subtle.decrypt(
+                            {
+                                name: "AES-CBC",
+                                iv: _iv,
+                            },
+                            _keyFile,
+                            encryptedDataBuffer
+                        )
+                        .then(function (decryptedDataBuffer) {
+                            var decryptedDataText = ab2str(decryptedDataBuffer);
+                            if (decryptedDataText) {
+                                var data = JSON.parse(decryptedDataText);
+
+                                for (var i = 0; i < data.list.length; ++i) {
+                                    var item = data.list[i];
+                                    var passwordItem = _data.createPassword(
+                                        item.label,
+                                        item.user,
+                                        item.password,
+                                        item.notes,
+                                        item.createdOn,
+                                        item.modifiedOn);
+
+                                    _view.addPasswordToList(passwordItem);
+                                }
+                            }
+                        })
+                        .catch(function (err) {
+                            alert("An error occured on decrypt: " + err);
+                        });
+
+                    };
+                    reader.readAsArrayBuffer(files[0]);
+                }
+            },
+
+            onLoadKeyFile: function(e) {
+                var files = e.target.files;
+
+                document.getElementById("keyFileLoading").innerHTML = "Loading...";
+
+                if (files && files.length > 0) {
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var fileArrayBuffer = e.target.result;
+
+                        window.crypto.subtle.digest("SHA-256", fileArrayBuffer)
+                            .then(function (result) {
+                                
+                                crypto.subtle.importKey(
+                                        "raw",
+                                        result,
+                                        "AES-CBC",
+                                        false,
+                                        ["encrypt", "decrypt"])
+                                    .then(function (key) {
+                                        _keyFile = key;
+
+                                        document.getElementById("keyFileLoading").innerHTML = "";
+                                    })
+                                    .catch(function (error) {
+                                        alert("error importing key!");
+                                    });
+
+                            })
+                            .catch(function (error) {
+                                alert("error loading key!");
+                            });
+
+                        window.crypto.subtle.digest("SHA-1", fileArrayBuffer)
+                            .then(function (result) {
+                                _iv = new Uint8Array(result, 4, 16);
+                            })
+                            .catch(function (error) {
+                                alert("error loading key!");
+                            });
+                    };
+                    reader.readAsArrayBuffer(files[0]);
+                }
+            },
+
+            onSaveData: function(e) {
+                var fileName = "passlist.dat";
+                var plainDataBuffer = str2ab(_data.serializeData());
+
+                if (document.getElementById("encryptData").checked === false) {
+                    saveData(fileName, plainDataBuffer);
+                } else {
+                    window.crypto.subtle.encrypt(
+                        {
+                            name: "AES-CBC",
+                            iv: _iv,
+                        },
+                        _keyFile,
+                        plainDataBuffer
+                    )
+                    .then(function (encryptedDataBuffer) {
+                        saveData(fileName, encryptedDataBuffer);
+                    })
+                    .catch(function (err) {
+                        console.error(err);
+                    });
+                }
+            },
+
+            onShowHidePassword: function(e) {
+                // // label: row.childNodes[0].firstChild.value,
+                // // user: row.childNodes[1].firstChild.value,
+                // // password: row.childNodes[2].firstChild.value,
+                // // notes: row.childNodes[3].firstChild.value
+                // var showHideCheckbox = e.target;
+                // var row = e.target.parentNode.parentNode;
+
+                // row.childNodes[1].firstChild.type = showHideCheckbox.checked ? "text" : "password";
+                // row.childNodes[2].firstChild.type = showHideCheckbox.checked ? "text" : "password";
             }
 
-            return JSON.stringify(data);
+            // End: Event Handlers
+        };
+
+        // Begin: Helper Objects
+        function PasswordItem(label, user, password, notes, createdOnISO8601, modifiedOnISO8601) {
+            var self = this;
+            var now = new Date();
+
+            self.label = label || "";
+            self.user = user || "";
+            self.password = password || "";
+            self.notes = notes || "";
+            self.createdOn = (createdOnISO8601 ? new Date(createdOnISO8601) : now);
+            self.modifiedOn = (modifiedOnISO8601 ? new Date(modifiedOnISO8601) : now);
+
+            self.getId = function() {
+                return self.createdOn.valueOf(); // Use created on as id.
+            };
         }
+        // End: Helper Objects
 
-        function decryptData(encrypted, onDone) {
-            window.crypto.subtle.decrypt(
-                {
-                    name: "AES-CBC",
-                    iv: _iv,
-                },
-                _keyFile,
-                encrypted
-            )
-            .then(function (decrypted) {
-                onDone(ab2str(decrypted));
-            })
-            .catch(function (err) {
-                console.error(err);
-            });
-        }
-
-        function encryptData(serializedData, onDone) {
-            var data = str2ab(serializedData);
-
-            window.crypto.subtle.encrypt(
-                    {
-                        name: "AES-CBC",
-                        iv: _iv,
-                    },
-                    _keyFile,
-                    data
-                )
-                .then(function (encrypted) {
-                    onDone(encrypted);
-                })
-                .catch(function (err) {
-                    console.error(err);
-                });
-        }
-
-        // link: https://stackoverflow.com/questions/3665115/create-a-file-in-memory-for-user-to-download-not-through-server
+        // Reference: https://stackoverflow.com/questions/3665115/create-a-file-in-memory-for-user-to-download-not-through-server
         function saveData(filename, arrayBuffer) {
             var element = document.createElement('a');
             element.setAttribute('href', window.URL.createObjectURL(new Blob([arrayBuffer])));
@@ -197,7 +308,7 @@
             document.body.removeChild(element);
         }
 
-        // link: https://developers.google.com/web/updates/2012/06/How-to-convert-ArrayBuffer-to-and-from-String
+        // Reference: https://developers.google.com/web/updates/2012/06/How-to-convert-ArrayBuffer-to-and-from-String
         function ab2str(buf) {
             return String.fromCharCode.apply(null, new Uint16Array(buf));
         }
@@ -212,27 +323,54 @@
 
         window.onload = function() {
             document.getElementById("addPassword")
-                .addEventListener("click", addPasswordHandler, false);
+                .addEventListener("click", _view.onAddPassword, false);
 
-            document.getElementById("fileData")
-                .addEventListener("change", loadDataHandler, false);
+            document.getElementById("applyEditPassword")
+                .addEventListener("click", _view.onApplyEditPassword, false);
 
-            document.getElementById("fileKey")
-                .addEventListener("change", loadKeyHandler, false);
+            document.getElementById("cancelEditPassword")
+                .addEventListener("click", _view.onCancelEditPassword, false);
+
+            document.getElementById("dataFile")
+                .addEventListener("change", _view.onLoadDataFile, false);
+
+            document.getElementById("keyFile")
+                .addEventListener("change", _view.onLoadKeyFile, false);
 
             document.getElementById("saveData")
-                .addEventListener("click", saveDataHandler, false);
+                .addEventListener("click", _view.onSaveData, false);
         }
     </script>
 </head>
 <body>
-    <input id="fileKey" type="file" />
-    <span id="fileKeyLoading"></span>
-    <br />
-    <input id="fileData" type="file" />
-    <br />
-    <button id="addPassword">Add</button>
-    <button id="saveData">Save Data</button>
+    <p>
+        <label>Key File</label>
+        <input id="keyFile" type="file" />
+        <span id="keyFileLoading"></span>
+        <br />
+        <label>Data File</label>
+        <input id="dataFile" type="file" />
+    </p>
+    <p>
+        <form id="passwordForm">
+            <input id="passwordFormId" type="hidden" />
+            <input id="passwordFormIndex" type="hidden" />
+            <label>Label</label>
+            <input id="passwordFormLabel" type="text" />
+            <br />
+            <label>User</label>
+            <input id="passwordFormUser" type="text" />
+            <br />
+            <label>Password</label>
+            <input id="passwordFormPassword" type="text" />
+            <br />
+            <label>Notes</label>
+            <textarea id="passwordFormNotes"></textarea>
+        </form>
+        <button id="addPassword">Add</button>
+        <button id="applyEditPassword">Apply Edit</button>
+        <button id="cancelEditPassword">Cancel Edit</button>
+    </p>
     <table id="passwordList">
         <thead>
             <tr>
@@ -240,10 +378,18 @@
                 <th>User</th>
                 <th>Password</th>
                 <th>Notes</th>
-                <th>Show/Hide</th>
+                <th>Created On</th>
+                <th>Modified On</th>
+                <th></th>
+                <th></th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
+    <p>
+        <button id="saveData">Save Data</button>
+        <label>Is Encrypted?</label>
+        <input id="encryptData" type="checkbox" checked="checked" />
+    </p>
 </body>
 </html>
