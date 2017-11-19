@@ -6,6 +6,8 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Password List</title>
     <script>
+        var MASKED_TEXT = "*****";
+
         var _data = {
             passwordList: [],
 
@@ -56,33 +58,41 @@
             }
         };
 
-        var _iv = null;
-        var _keyFile = null;
-
         var _view = {
+            iv: null,
+            key: null,
+
             addPasswordToList: function(passwordItem) {
                 // Create and add a table row.
                 var tbody = document.querySelector("#passwordList tbody");
                 var newRow = tbody.insertRow(-1);
                 newRow.dataset.id = passwordItem.getId();
                 newRow.insertCell(0).innerHTML = passwordItem.label;
-                newRow.insertCell(1).innerHTML = passwordItem.user;
-                newRow.insertCell(2).innerHTML = passwordItem.password;
-                newRow.insertCell(3).innerHTML = passwordItem.notes;
-                newRow.insertCell(4).innerHTML = passwordItem.createdOn.toLocaleString();
-                newRow.insertCell(5).innerHTML = passwordItem.modifiedOn.toLocaleString();
+                newRow.insertCell(1).innerHTML = MASKED_TEXT;
+                newRow.insertCell(2).innerHTML = MASKED_TEXT;
+                newRow.insertCell(3).innerHTML = MASKED_TEXT;
 
-                // var showHideCell = newRow.insertCell(4);
-                // showHideCell.innerHTML = '<input type="checkbox" />';
-                // showHideCell.firstChild.addEventListener("change", showHideHandler, false);
+                var maskedCell = newRow.insertCell(4);
+                maskedCell.innerHTML = '<input type="checkbox" checked="checked" />';
+                maskedCell.firstChild.addEventListener("change", _view.onMaskedFields, false);
 
-                var deleteCell = newRow.insertCell(6);
+                newRow.insertCell(5).innerHTML = passwordItem.createdOn.toLocaleString();
+                newRow.insertCell(6).innerHTML = passwordItem.modifiedOn.toLocaleString();
+
+                var deleteCell = newRow.insertCell(7);
                 deleteCell.innerHTML = "<button>Delete</button>";
                 deleteCell.firstChild.addEventListener("click", _view.onDeletePassword, false);
 
-                var editCell = newRow.insertCell(7);
+                var editCell = newRow.insertCell(8);
                 editCell.innerHTML = "<button>Edit</button>";
                 editCell.firstChild.addEventListener("click", _view.onEditPassword, false);
+            },
+
+            maskFields: function(row, passwordItem) {
+                var masked = row.cells[4].firstChild.checked;
+                row.cells[1].innerHTML = (masked ? MASKED_TEXT : passwordItem.user);
+                row.cells[2].innerHTML = (masked ? MASKED_TEXT : passwordItem.password);
+                row.cells[3].innerHTML = (masked ? MASKED_TEXT : passwordItem.notes);
             },
 
             // Begin: Event Handlers
@@ -117,10 +127,9 @@
                     var row = document.getElementById("passwordList").rows[rowIndex];
                     // Refresh the password in the table.
                     row.cells[0].innerHTML = passwordItem.label;
-                    row.cells[1].innerHTML = passwordItem.user;
-                    row.cells[2].innerHTML = passwordItem.password;
-                    row.cells[3].innerHTML = passwordItem.notes;
-                    row.cells[5].innerHTML = passwordItem.modifiedOn.toLocaleString();
+                    row.cells[6].innerHTML = passwordItem.modifiedOn.toLocaleString();
+
+                    _view.maskFields(row, passwordItem);
                 }
 
                 // Clear user input.
@@ -162,9 +171,9 @@
                         window.crypto.subtle.decrypt(
                             {
                                 name: "AES-CBC",
-                                iv: _iv,
+                                iv: _view.iv,
                             },
-                            _keyFile,
+                            _view.key,
                             encryptedDataBuffer
                         )
                         .then(function (decryptedDataBuffer) {
@@ -215,7 +224,7 @@
                                         false,
                                         ["encrypt", "decrypt"])
                                     .then(function (key) {
-                                        _keyFile = key;
+                                        _view.key = key;
 
                                         document.getElementById("keyFileLoading").innerHTML = "";
                                     })
@@ -230,7 +239,7 @@
 
                         window.crypto.subtle.digest("SHA-1", fileArrayBuffer)
                             .then(function (result) {
-                                _iv = new Uint8Array(result, 4, 16);
+                                _view.iv = new Uint8Array(result, 4, 16);
                             })
                             .catch(function (error) {
                                 alert("error loading key!");
@@ -238,6 +247,13 @@
                     };
                     reader.readAsArrayBuffer(files[0]);
                 }
+            },
+
+            onMaskedFields: function(e) {
+                var row = e.target.parentNode.parentNode;
+                var passwordItem = _data.getPassword(parseInt(row.dataset.id));
+
+                _view.maskFields(row, passwordItem);
             },
 
             onSaveData: function(e) {
@@ -250,9 +266,9 @@
                     window.crypto.subtle.encrypt(
                         {
                             name: "AES-CBC",
-                            iv: _iv,
+                            iv: _view.iv,
                         },
-                        _keyFile,
+                        _view.key,
                         plainDataBuffer
                     )
                     .then(function (encryptedDataBuffer) {
@@ -262,18 +278,6 @@
                         console.error(err);
                     });
                 }
-            },
-
-            onShowHidePassword: function(e) {
-                // // label: row.childNodes[0].firstChild.value,
-                // // user: row.childNodes[1].firstChild.value,
-                // // password: row.childNodes[2].firstChild.value,
-                // // notes: row.childNodes[3].firstChild.value
-                // var showHideCheckbox = e.target;
-                // var row = e.target.parentNode.parentNode;
-
-                // row.childNodes[1].firstChild.type = showHideCheckbox.checked ? "text" : "password";
-                // row.childNodes[2].firstChild.type = showHideCheckbox.checked ? "text" : "password";
             }
 
             // End: Event Handlers
@@ -341,6 +345,9 @@
                 .addEventListener("click", _view.onSaveData, false);
         }
     </script>
+    <style>
+        /* TODO */
+    </style>
 </head>
 <body>
     <p>
@@ -378,6 +385,7 @@
                 <th>User</th>
                 <th>Password</th>
                 <th>Notes</th>
+                <th>Masked</th>
                 <th>Created On</th>
                 <th>Modified On</th>
                 <th></th>
