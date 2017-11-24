@@ -11,8 +11,8 @@
         var _data = {
             passwordList: [],
 
-            createPassword: function(label, user, password, notes, createdOnISO8601, modifiedOnISO8601) {
-                var passwordItem = new PasswordItem(label, user, password, notes, createdOnISO8601, modifiedOnISO8601);
+            createPassword: function(label, user, password, notes, passwordModifiedOnISO8601, createdOnISO8601, modifiedOnISO8601) {
+                var passwordItem = new PasswordItem(label, user, password, notes, passwordModifiedOnISO8601, createdOnISO8601, modifiedOnISO8601);
                 this.passwordList.push(passwordItem);
 
                 return passwordItem;
@@ -47,11 +47,18 @@
                 var passwordItem = this.getPassword(id);
 
                 if (passwordItem) {
+                    var now = new Date();
+
                     passwordItem.label = label;
                     passwordItem.user = user;
-                    passwordItem.password = password;
                     passwordItem.notes = notes;
-                    passwordItem.modifiedOn = new Date();
+                    passwordItem.modifiedOn = now;
+
+                    // If password changed update timestamp.
+                    if (passwordItem.password !== password) {
+                        passwordItem.password = password;
+                        passwordItem.passwordModifiedOn = now;
+                    }
                 }
 
                 return passwordItem;
@@ -76,14 +83,15 @@
                 maskedCell.innerHTML = '<input type="checkbox" checked="checked" />';
                 maskedCell.firstChild.addEventListener("change", _view.onMaskedFields, false);
 
-                newRow.insertCell(5).innerHTML = passwordItem.createdOn.toLocaleString();
-                newRow.insertCell(6).innerHTML = passwordItem.modifiedOn.toLocaleString();
+                newRow.insertCell(5).innerHTML = passwordItem.getPasswordChangedOnText();
+                newRow.insertCell(6).innerHTML = passwordItem.createdOn.toLocaleString();
+                newRow.insertCell(7).innerHTML = passwordItem.modifiedOn.toLocaleString();
 
-                var deleteCell = newRow.insertCell(7);
+                var deleteCell = newRow.insertCell(8);
                 deleteCell.innerHTML = "<button>Delete</button>";
                 deleteCell.firstChild.addEventListener("click", _view.onDeletePassword, false);
 
-                var editCell = newRow.insertCell(8);
+                var editCell = newRow.insertCell(9);
                 editCell.innerHTML = "<button>Edit</button>";
                 editCell.firstChild.addEventListener("click", _view.onEditPassword, false);
             },
@@ -127,7 +135,8 @@
                     var row = document.getElementById("passwordList").rows[rowIndex];
                     // Refresh the password in the table.
                     row.cells[0].innerHTML = passwordItem.label;
-                    row.cells[6].innerHTML = passwordItem.modifiedOn.toLocaleString();
+                    row.cells[5].innerHTML = passwordItem.getPasswordChangedOnText();
+                    row.cells[7].innerHTML = passwordItem.modifiedOn.toLocaleString();
 
                     _view.maskFields(row, passwordItem);
                 }
@@ -188,6 +197,7 @@
                                         item.user,
                                         item.password,
                                         item.notes,
+                                        item.passwordModifiedOn,
                                         item.createdOn,
                                         item.modifiedOn);
 
@@ -284,19 +294,40 @@
         };
 
         // Begin: Helper Objects
-        function PasswordItem(label, user, password, notes, createdOnISO8601, modifiedOnISO8601) {
+        function PasswordItem(label, user, password, notes, passwordModifiedOnISO8601, createdOnISO8601, modifiedOnISO8601) {
             var self = this;
             var now = new Date();
 
             self.label = label || "";
             self.user = user || "";
             self.password = password || "";
+            self.passwordModifiedOn = (passwordModifiedOnISO8601 ? new Date(passwordModifiedOnISO8601) : now);
             self.notes = notes || "";
             self.createdOn = (createdOnISO8601 ? new Date(createdOnISO8601) : now);
             self.modifiedOn = (modifiedOnISO8601 ? new Date(modifiedOnISO8601) : now);
 
             self.getId = function() {
                 return self.createdOn.valueOf(); // Use created on as id.
+            };
+
+            self.getPasswordChangedOnText = function() {
+                var elapsed = (new Date()) - self.passwordModifiedOn;
+                var result;
+
+                if ((result = Math.floor(elapsed / 1000 / 60 / 60 / 24)) >= 1) {
+                    return result + " day" + (result === 1 ? "" : "s");
+                }
+                else if ((result = Math.floor(elapsed / 1000 / 60 / 60)) >= 1) {
+                    return result + " hour" + (result === 1 ? "" : "s");
+                }
+                else if ((result = Math.floor(elapsed / 1000 / 60)) >= 1) {
+                    return result + " minute" + (result === 1 ? "" : "s");
+                }
+                else if ((result = Math.floor(elapsed / 1000)) > 1) {
+                    return result + " seconds";
+                }
+                else 
+                    return "Just now";
             };
         }
         // End: Helper Objects
@@ -386,6 +417,7 @@
                 <th>Password</th>
                 <th>Notes</th>
                 <th>Masked</th>
+                <th>Password Changed On</th>
                 <th>Created On</th>
                 <th>Modified On</th>
                 <th></th>
